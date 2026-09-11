@@ -1,0 +1,19 @@
+CLOUDFLARE QUICK SETUP
+
+1. Put this project in a new GitHub repository.
+2. Cloudflare > Workers & Pages > Create > Import repository.
+3. Build command: npm install
+4. Deploy command: npx wrangler deploy
+5. Add variables/secrets:
+   TELEGRAM_BOT_TOKEN
+   WEBHOOK_SECRET
+   SETUP_KEY
+   ADMIN_TELEGRAM_ID
+   SUPPORT_BTC_ADDRESS
+6. Visit:
+   https://YOUR-WORKER.workers.dev/setup-webhook?key=YOUR_SETUP_KEY
+7. Telegram: /start
+8. Telegram: /myid
+9. Telegram: /admin
+
+Demo only: no real gambling deposits or real BTC wagering payouts.

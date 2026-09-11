@@ -1,0 +1,18 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "roulette-telegram-demo",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-11",
+  "durable_objects": {
+    "bindings": [
+      { "name": "PLAYERS", "class_name": "PlayerState" },
+      { "name": "WITHDRAWALS", "class_name": "WithdrawalQueue" }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["PlayerState", "WithdrawalQueue"]
+    }
+  ]
+}
