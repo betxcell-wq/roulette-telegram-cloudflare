@@ -36,7 +36,12 @@ function defaultState(userId) {
     pendingWithdrawalAmount: null,
     demoWithdrawals: [],
     history: [],
-    autoTarget: null
+    autoTarget: null,
+    mode: "demo",
+    poolContributions: [],
+    poolPendingInput: null,
+    poolPendingAmount: null,
+    poolName: null
   };
 }
 
@@ -96,7 +101,8 @@ function statusText(st, result=null, reason=null) {
   if (reason) top += `⛔ ${reason}\n────────────────────\n`;
 
   return top +
-`🎰 ROULETTE DEMO BOT
+`🎰 COMMUNITY DEMO BOT
+Mode        ${st.mode === "pool" ? "COMMUNITY POOL" : "DEMO"}
 ────────────────────
 Balance     ${fmt(st.balance)}
 Session P/L ${fmtSigned(session)}
@@ -149,28 +155,113 @@ function historyText(st) {
 
 function mainKeyboard(st) {
   const turbo = st.speedMs <= TURBO_SPEED_MS;
-  return { inline_keyboard: [
+
+  const rows = [
     [
-      { text: st.running ? "⏹ Stop Auto" : "▶️ Start Auto", callback_data: st.running ? "stop" : "start" },
-      { text: turbo ? "⚡ TURBO ON" : "⚡ Turbo Speed", callback_data: turbo ? "speed_normal" : "speed_turbo" }
-    ],
-    [
-      { text: "⚙️ Bet Settings", callback_data: "settings" },
-      { text: "📊 Stats", callback_data: "stats" }
-    ],
-    [
-      { text: "🧾 History", callback_data: "history" },
-      { text: "🔄 Reset", callback_data: "reset" }
-    ],
-    [
-      { text: "➕ Demo Deposit", callback_data: "deposit100" },
-      { text: "➖ Demo Withdraw", callback_data: "demo_withdraw" }
-    ],
-    [
-      { text: "₿ Support with BTC", callback_data: "btc_support" },
-      { text: "📋 Demo Withdrawals", callback_data: "demo_withdrawals" }
+      { text: st.mode === "demo" ? "✅ DEMO" : "🎮 Demo", callback_data: "mode_demo" },
+      { text: st.mode === "pool" ? "✅ COMMUNITY POOL" : "🤝 Community Pool", callback_data: "mode_pool" }
     ]
-  ]};
+  ];
+
+  if (st.mode === "demo") {
+    rows.push(
+      [
+        { text: st.running ? "⏹ Stop Auto" : "▶️ Start Auto", callback_data: st.running ? "stop" : "start" },
+        { text: turbo ? "⚡ TURBO ON" : "⚡ Turbo Speed", callback_data: turbo ? "speed_normal" : "speed_turbo" }
+      ],
+      [
+        { text: "⚙️ Bet Settings", callback_data: "settings" },
+        { text: "📊 Stats", callback_data: "stats" }
+      ],
+      [
+        { text: "🧾 History", callback_data: "history" },
+        { text: "🔄 Reset", callback_data: "reset" }
+      ],
+      [
+        { text: "➕ Demo Deposit", callback_data: "deposit100" },
+        { text: "➖ Demo Withdraw", callback_data: "demo_withdraw" }
+      ],
+      [
+        { text: "₿ Support with BTC", callback_data: "btc_support" },
+        { text: "📋 Demo Withdrawals", callback_data: "demo_withdrawals" }
+      ]
+    );
+  } else {
+    rows.push(
+      [
+        { text: "🏦 Pool Summary", callback_data: "pool_summary" },
+        { text: "➕ Record Contribution", callback_data: "pool_add" }
+      ],
+      [
+        { text: "📜 My Contributions", callback_data: "pool_mine" },
+        { text: "🗳 Governance", callback_data: "pool_governance" }
+      ],
+      [
+        { text: "₿ Treasury Address", callback_data: "pool_address" },
+        { text: "🎰 Back to Demo", callback_data: "mode_demo" }
+      ]
+    );
+  }
+
+  return { inline_keyboard: rows };
+}
+
+
+
+function poolSummaryText(st) {
+  const mine = st.poolContributions || [];
+  const myTotal = mine.reduce((a, x) => a + Number(x.amount || 0), 0);
+
+  return `🤝 COMMUNITY POOL
+
+Your recorded contributions: ${mine.length}
+Your recorded total: ${myTotal.toFixed(8)} BTC
+
+This pool is for community/development funding only.
+It is NOT a gambling bankroll and does not create wagering credits or gambling withdrawal rights.
+
+Use "Record Contribution" to log a contribution you made to the community treasury.`;
+}
+
+function poolMineText(st) {
+  const mine = (st.poolContributions || []).slice(0, 20);
+  if (!mine.length) {
+    return "📜 MY CONTRIBUTIONS\n\nNo community contributions recorded yet.";
+  }
+
+  const total = mine.reduce((a, x) => a + Number(x.amount || 0), 0);
+  const lines = mine.map((x, i) =>
+    `${i + 1}. ${Number(x.amount).toFixed(8)} BTC • ${x.status || "RECORDED"}${x.note ? `\n${x.note}` : ""}`
+  ).join("\n\n");
+
+  return `📜 MY CONTRIBUTIONS\n\n${lines}\n\nTotal recorded: ${total.toFixed(8)} BTC`;
+}
+
+function poolAddressText(env) {
+  const address = String(env.SUPPORT_BTC_ADDRESS || "").trim();
+  if (!address) return "₿ COMMUNITY TREASURY\n\nTreasury address is not configured yet.";
+
+  return `₿ COMMUNITY TREASURY
+
+BTC address:
+${address}
+
+Community funding only.
+
+Sending BTC here does NOT add roulette credits, create a gambling balance, or create any entitlement to gambling winnings or withdrawals.`;
+}
+
+function governanceText() {
+  return `🗳 COMMUNITY GOVERNANCE
+
+Suggested uses for the community pool:
+• Hosting and infrastructure
+• Bot development
+• Design and maintenance
+• Community tools and services
+• Other non-gambling project expenses approved by the group
+
+This version tracks funding only. It does not spend funds automatically and does not use the treasury as a roulette bankroll.`;
 }
 
 function settingsKeyboard() {
@@ -473,6 +564,59 @@ Choose the value you want to change:`;
       return safeEdit(this.env, chatId, messageId, adminQueueText(queue), adminQueueKeyboard(queue));
     }
 
+
+    if (data === "mode_demo") {
+      st.mode = "demo";
+      st.poolPendingInput = null;
+      st.poolPendingAmount = null;
+      await this.saveState(st);
+      return safeEdit(this.env, chatId, messageId, "🎮 DEMO MODE\n\n" + statusText(st), mainKeyboard(st));
+    }
+
+    if (data === "mode_pool") {
+      st.mode = "pool";
+      st.running = false;
+      st.runId = null;
+      st.autoTarget = null;
+      st.pendingInput = null;
+      await this.storage.deleteAlarm();
+      await this.saveState(st);
+      return safeEdit(this.env, chatId, messageId, poolSummaryText(st), mainKeyboard(st));
+    }
+
+    if (data === "pool_summary") {
+      st.mode = "pool";
+      await this.saveState(st);
+      return safeEdit(this.env, chatId, messageId, poolSummaryText(st), mainKeyboard(st));
+    }
+
+    if (data === "pool_mine") {
+      return safeEdit(this.env, chatId, messageId, poolMineText(st), mainKeyboard(st));
+    }
+
+    if (data === "pool_governance") {
+      return safeEdit(this.env, chatId, messageId, governanceText(), mainKeyboard(st));
+    }
+
+    if (data === "pool_address") {
+      const address = String(this.env.SUPPORT_BTC_ADDRESS || "").trim();
+      const rows = [];
+      if (address) rows.push([{ text:"₿ Open Bitcoin Wallet", url:`bitcoin:${address}` }]);
+      rows.push([{ text:"🤝 Community Pool", callback_data:"mode_pool" }]);
+      return safeEdit(this.env, chatId, messageId, poolAddressText(this.env), { inline_keyboard: rows });
+    }
+
+    if (data === "pool_add") {
+      st.mode = "pool";
+      st.poolPendingInput = "amount";
+      st.poolPendingAmount = null;
+      await this.saveState(st);
+      return safeEdit(this.env, chatId, messageId,
+        "➕ RECORD COMMUNITY CONTRIBUTION\n\nEnter the BTC amount you contributed.\n\nExample: 0.001\n\nThis only records community funding. It does not create roulette credits or gambling withdrawal rights.",
+        { inline_keyboard:[[ {text:"⬅️ Cancel", callback_data:"mode_pool"} ]] }
+      );
+    }
+
     if (data === "dashboard") {
       st.pendingInput = null;
       await this.saveState(st);
@@ -601,6 +745,20 @@ Choose the value you want to change:`;
       });
     }
 
+    if (text === "/pool") {
+      st.mode = "pool";
+      st.running = false;
+      st.runId = null;
+      st.autoTarget = null;
+      await this.storage.deleteAlarm();
+      await this.saveState(st);
+      return telegramApi(this.env, "sendMessage", {
+        chat_id: chatId,
+        text: poolSummaryText(st),
+        reply_markup: mainKeyboard(st)
+      });
+    }
+
     if (text === "/stats") {
       return telegramApi(this.env, "sendMessage", {chat_id:chatId, text:statsText(st), reply_markup:viewKeyboard()});
     }
@@ -623,6 +781,59 @@ Choose the value you want to change:`;
       const queue = await queueGet(this.env);
       return telegramApi(this.env, "sendMessage", {
         chat_id:chatId, text:adminQueueText(queue), reply_markup:adminQueueKeyboard(queue)
+      });
+    }
+
+    if (st.poolPendingInput === "amount") {
+      const amount = Number(text.replaceAll(",", ""));
+      if (!Number.isFinite(amount) || amount <= 0 || amount > 21_000_000) {
+        return telegramApi(this.env, "sendMessage", {
+          chat_id: chatId,
+          text: "Enter a valid BTC amount greater than 0. Example: 0.001"
+        });
+      }
+
+      st.poolPendingAmount = amount;
+      st.poolPendingInput = "note";
+      await this.saveState(st);
+
+      return telegramApi(this.env, "sendMessage", {
+        chat_id: chatId,
+        text: `Contribution amount: ${amount.toFixed(8)} BTC\n\nNow enter a short note or transaction reference.\n\nExample: September community contribution`
+      });
+    }
+
+    if (st.poolPendingInput === "note") {
+      const note = text.slice(0, 200);
+      const amount = Number(st.poolPendingAmount || 0);
+
+      if (!(amount > 0)) {
+        st.poolPendingInput = null;
+        st.poolPendingAmount = null;
+        await this.saveState(st);
+        return telegramApi(this.env, "sendMessage", {
+          chat_id: chatId,
+          text: "Contribution amount was lost. Start again from Community Pool."
+        });
+      }
+
+      const entry = {
+        amount,
+        note,
+        status: "RECORDED",
+        ts: Date.now()
+      };
+
+      st.poolContributions = [entry, ...(st.poolContributions || [])].slice(0, 100);
+      st.poolPendingInput = null;
+      st.poolPendingAmount = null;
+      st.mode = "pool";
+      await this.saveState(st);
+
+      return telegramApi(this.env, "sendMessage", {
+        chat_id: chatId,
+        text: `✅ Community contribution recorded: ${amount.toFixed(8)} BTC\n\n${poolSummaryText(st)}`,
+        reply_markup: mainKeyboard(st)
       });
     }
 
@@ -799,7 +1010,7 @@ small{color:#aeb4bf}
 </style></head>
 <body><div class="card">
 <h1>🎰 Roulette Telegram Demo Bot</h1>
-<p>Cloudflare Workers + Durable Objects version is online.</p>
+<p>Cloudflare Workers + Durable Objects version is online with Demo and Community Pool modes.</p>
 <p>Telegram webhook endpoint: <code>/telegram</code></p>
 <p>Webhook setup endpoint: <code>/setup-webhook?key=YOUR_SETUP_KEY</code></p>
 <small>Demo credits only. No real-money gambling deposits or payouts are implemented.</small>
