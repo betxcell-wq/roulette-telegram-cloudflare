@@ -598,35 +598,20 @@ Choose the value you want to change:`;
       return safeEdit(this.env, chatId, messageId, governanceText(), mainKeyboard(st));
     }
 
-if (data === "pool_address") {
-  const address = String(this.env.SUPPORT_BTC_ADDRESS || "").trim();
+    if (data === "pool_address") {
+      const address = String(this.env.SUPPORT_BTC_ADDRESS || "").trim();
 
-  const rows = [];
-
-  if (address) {
-    rows.push([
-      {
-        text: "₿ Open Bitcoin Wallet",
-        url: `bitcoin:${address}`
-      }
-    ]);
-  }
-
-  rows.push([
-    {
-      text: "🤝 Community Pool",
-      callback_data: "mode_pool"
+      return telegramApi(this.env, "sendMessage", {
+        chat_id: chatId,
+        text: poolAddressText(this.env),
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🤝 Community Pool", callback_data: "mode_pool" }]
+          ]
+        }
+      });
     }
-  ]);
 
-  return telegramApi(this.env, "sendMessage", {
-    chat_id: chatId,
-    text: poolAddressText(this.env),
-    reply_markup: {
-      inline_keyboard: rows
-    }
-  });
-}
     if (data === "pool_add") {
       st.mode = "pool";
       st.poolPendingInput = "amount";
@@ -723,35 +708,17 @@ if (data === "pool_address") {
       return safeEdit(this.env, chatId, messageId, "✅ Session reset.\n\n" + statusText(st), mainKeyboard(st));
     }
 
-if (data === "btc_support") {
-  const address = String(this.env.SUPPORT_BTC_ADDRESS || "").trim();
-
-  const rows = [];
-
-  if (address) {
-    rows.push([
-      {
-        text: "₿ Open Bitcoin Wallet",
-        url: `bitcoin:${address}`
-      }
-    ]);
-  }
-
-  rows.push([
-    {
-      text: "🎰 Dashboard",
-      callback_data: "dashboard"
+    if (data === "btc_support") {
+      return telegramApi(this.env, "sendMessage", {
+        chat_id: chatId,
+        text: supportText(this.env),
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🎰 Dashboard", callback_data: "dashboard" }]
+          ]
+        }
+      });
     }
-  ]);
-
-  return telegramApi(this.env, "sendMessage", {
-    chat_id: chatId,
-    text: supportText(this.env),
-    reply_markup: {
-      inline_keyboard: rows
-    }
-  });
-}
 
     if (data === "demo_withdraw") {
       st.pendingInput = "withdraw_amount";
