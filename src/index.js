@@ -723,13 +723,35 @@ if (data === "pool_address") {
       return safeEdit(this.env, chatId, messageId, "✅ Session reset.\n\n" + statusText(st), mainKeyboard(st));
     }
 
-    if (data === "btc_support") {
-      const address = String(this.env.SUPPORT_BTC_ADDRESS || "").trim();
-      const rows = [];
-      if (address) rows.push([{text:"₿ Open Bitcoin Wallet", url:`bitcoin:${address}`}]);
-      rows.push([{text:"🎰 Dashboard", callback_data:"dashboard"}]);
-      return safeEdit(this.env, chatId, messageId, supportText(this.env), {inline_keyboard:rows});
+if (data === "btc_support") {
+  const address = String(this.env.SUPPORT_BTC_ADDRESS || "").trim();
+
+  const rows = [];
+
+  if (address) {
+    rows.push([
+      {
+        text: "₿ Open Bitcoin Wallet",
+        url: `bitcoin:${address}`
+      }
+    ]);
+  }
+
+  rows.push([
+    {
+      text: "🎰 Dashboard",
+      callback_data: "dashboard"
     }
+  ]);
+
+  return telegramApi(this.env, "sendMessage", {
+    chat_id: chatId,
+    text: supportText(this.env),
+    reply_markup: {
+      inline_keyboard: rows
+    }
+  });
+}
 
     if (data === "demo_withdraw") {
       st.pendingInput = "withdraw_amount";
