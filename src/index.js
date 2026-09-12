@@ -598,14 +598,35 @@ Choose the value you want to change:`;
       return safeEdit(this.env, chatId, messageId, governanceText(), mainKeyboard(st));
     }
 
-    if (data === "pool_address") {
-      const address = String(this.env.SUPPORT_BTC_ADDRESS || "").trim();
-      const rows = [];
-      if (address) rows.push([{ text:"₿ Open Bitcoin Wallet", url:`bitcoin:${address}` }]);
-      rows.push([{ text:"🤝 Community Pool", callback_data:"mode_pool" }]);
-      return safeEdit(this.env, chatId, messageId, poolAddressText(this.env), { inline_keyboard: rows });
-    }
+if (data === "pool_address") {
+  const address = String(this.env.SUPPORT_BTC_ADDRESS || "").trim();
 
+  const rows = [];
+
+  if (address) {
+    rows.push([
+      {
+        text: "₿ Open Bitcoin Wallet",
+        url: `bitcoin:${address}`
+      }
+    ]);
+  }
+
+  rows.push([
+    {
+      text: "🤝 Community Pool",
+      callback_data: "mode_pool"
+    }
+  ]);
+
+  return telegramApi(this.env, "sendMessage", {
+    chat_id: chatId,
+    text: poolAddressText(this.env),
+    reply_markup: {
+      inline_keyboard: rows
+    }
+  });
+}
     if (data === "pool_add") {
       st.mode = "pool";
       st.poolPendingInput = "amount";
