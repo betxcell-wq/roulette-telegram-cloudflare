@@ -14,11 +14,11 @@ function defaultState(userId) {
   return {
     userId: String(userId),
     strategyVersion: 2,
-    balance: 0.00100000,
-    startBalance: 0.00100000,
-    unit: 0.00000100,
-    target: 0.00005000,
-    stoploss: 0.00010000,
+    balance: 1000,
+    startBalance: 1000,
+    unit: 1,
+    target: 50,
+    stoploss: 100,
     stage: 1,
     deficit: 0,
     maxRiskPct: 35,
@@ -27,7 +27,7 @@ function defaultState(userId) {
     cycles: 0,
     wins: 0,
     losses: 0,
-    peakBalance: 0.00100000,
+    peakBalance: 1000,
     maxDrawdown: 0,
     running: false,
     runId: null,
@@ -41,10 +41,7 @@ function defaultState(userId) {
     poolContributions: [],
     poolPendingInput: null,
     poolPendingAmount: null,
-    poolName: null,
-    demoCurrencyVersion: 2,
-    mirrorBtcBalance: 0,
-    mirrorEvents: []
+    poolName: null
   };
 }
 
@@ -79,19 +76,8 @@ function resultFor(stage, n, unit, deficit=0) {
     : { pnl: -info.risk, label: "DOZENS LOSS", complete: false };
 }
 
-function fmt(n) { return Number(n).toFixed(8); }
-function fmtSigned(n) { return `${n >= 0 ? "+" : ""}${Number(n).toFixed(8)}`; }
-function demoBtc(n) { return `${Number(n).toFixed(8)} BTC DEMO`; }
-function demoBtcSigned(n) { return `${n >= 0 ? "+" : ""}${Number(n).toFixed(8)} BTC DEMO`; }
-function mirrorBtc(n) { return `${Number(n).toFixed(8)} BTC`; }
-function mirrorHistoryText(st) {
-  const rows = (st.mirrorEvents || []).slice(-10).reverse();
-  if (!rows.length) return "No mirrored BTC activity yet.";
-  return rows.map((r, i) => {
-    const sign = r.type === "deposit" ? "+" : "-";
-    return `${i + 1}. ${sign}${Number(r.amount).toFixed(8)} BTC • Mirror ${Number(r.balance).toFixed(8)} BTC`;
-  }).join("\n");
-}
+function fmt(n) { return Number(n).toFixed(2); }
+function fmtSigned(n) { return `${n >= 0 ? "+" : ""}${Number(n).toFixed(2)}`; }
 
 function statusText(st, result=null, reason=null) {
   const session = st.balance - st.startBalance;
@@ -110,26 +96,26 @@ function statusText(st, result=null, reason=null) {
   if (result) {
     top += `🎲 LAST SPIN: ${result.number}   (Spin #${result.spin})\n`;
     top += `Step ${result.stage} — ${result.label}\n`;
-    top += `Spin P/L: ${demoBtcSigned(result.pnl)}\n────────────────────\n`;
+    top += `Spin P/L: ${fmtSigned(result.pnl)}\n────────────────────\n`;
   }
   if (reason) top += `⛔ ${reason}\n────────────────────\n`;
 
   return top +
-`🎰 BTC CREDIT ROULETTE DEMO
-Mode        ${st.mode === "pool" ? "COMMUNITY POOL" : "BTC CREDIT DEMO"}
+`🎰 COMMUNITY DEMO BOT
+Mode        ${st.mode === "pool" ? "COMMUNITY POOL" : "DEMO"}
 ────────────────────
-Demo Bal    ${demoBtc(st.balance)}\nBTC Mirror  ${mirrorBtc(st.mirrorBtcBalance || 0)}
-Session P/L ${demoBtcSigned(session)}
-Unit        ${demoBtc(st.unit)}
+Balance     ${fmt(st.balance)}
+Session P/L ${fmtSigned(session)}
+Unit        ${fmt(st.unit)}
 Spins       ${st.spins}
 Cycles      ${st.cycles}
 Win Rate    ${wr.toFixed(1)}%
-Drawdown    ${demoBtc(st.maxDrawdown)}
-Deficit     ${demoBtc((st.deficit || 0) * st.unit)}
+Drawdown    ${fmt(st.maxDrawdown)}
+Deficit     ${fmt((st.deficit || 0) * st.unit)}
 ────────────────────
 ${info.title}
 ${betLines}
-Current risk • ${demoBtc(info.risk)} (${info.units}u)
+Current risk • ${fmt(info.risk)} (${info.units}u)
 ────────────────────
 Auto • ${st.running ? "RUNNING" : "STOPPED"}`;
 }
@@ -140,20 +126,20 @@ function statsText(st) {
   const wr = total ? st.wins / total * 100 : 0;
   return `📊 SESSION STATS
 
-Balance: ${demoBtc(st.balance)}
-Session P/L: ${demoBtcSigned(session)}
-Unit Size: ${demoBtc(st.unit)}
-Profit Target: +${demoBtc(st.target)}
-Stop Target: -${demoBtc(st.stoploss)}
+Balance: ${fmt(st.balance)} credits
+Session P/L: ${fmtSigned(session)}
+Unit Size: ${fmt(st.unit)}
+Profit Target: +${fmt(st.target)}
+Stop Target: -${fmt(st.stoploss)}
 
 Spins: ${st.spins}
 Cycles: ${st.cycles}
 Wins: ${st.wins}
 Losses: ${st.losses}
 Win Rate: ${wr.toFixed(1)}%
-Max Drawdown: ${demoBtc(st.maxDrawdown)}
+Max Drawdown: ${fmt(st.maxDrawdown)}
 Recovery Level: ${st.stage || 1}
-Recovery Deficit: ${demoBtc((st.deficit || 0) * st.unit)}
+Recovery Deficit: ${fmt((st.deficit || 0) * st.unit)}
 Max Recovery Risk: ${st.maxRiskPct || 35}% bankroll
 
 Auto: ${st.running ? "RUNNING" : "STOPPED"}`;
@@ -163,7 +149,7 @@ function historyText(st) {
   const rows = (st.history || []).slice(0, 12);
   if (!rows.length) return "🧾 HISTORY\n\nNo spins yet.";
   return "🧾 LAST 12 SPINS\n\n" + rows.map(r =>
-    `#${r.spin} • ${r.number} • L${r.stage} • ${r.label} • ${demoBtcSigned(r.pnl)} • Bal ${demoBtc(r.balance)}`
+    `#${r.spin} • ${r.number} • L${r.stage} • ${r.label} • ${fmtSigned(r.pnl)} • Bal ${fmt(r.balance)}`
   ).join("\n");
 }
 
@@ -192,13 +178,12 @@ function mainKeyboard(st) {
         { text: "🔄 Reset", callback_data: "reset" }
       ],
       [
-        { text: "➕ Add Demo BTC", callback_data: "deposit100" },
-        { text: "➖ Remove Demo BTC", callback_data: "demo_withdraw" },
-        { text: "🔄 Mirror BTC", callback_data: "mirror_home" }
+        { text: "➕ Demo Deposit", callback_data: "deposit100" },
+        { text: "➖ Demo Withdraw", callback_data: "demo_withdraw" }
       ],
       [
         { text: "₿ Support with BTC", callback_data: "btc_support" },
-        { text: "📋 Demo BTC Requests", callback_data: "demo_withdrawals" }
+        { text: "📋 Demo Withdrawals", callback_data: "demo_withdrawals" }
       ]
     );
   } else {
@@ -232,7 +217,7 @@ function poolSummaryText(st) {
 Your recorded contributions: ${mine.length}
 Your recorded total: ${myTotal.toFixed(8)} BTC
 
-This pool is for community/development funding only. Real BTC contributions are never converted into DEMO BTC credits.
+This pool is for community/development funding only.
 It is NOT a gambling bankroll and does not create wagering credits or gambling withdrawal rights.
 
 Use "Record Contribution" to log a contribution you made to the community treasury.`;
@@ -333,10 +318,10 @@ function isAdmin(env, userId) {
 
 function demoWithdrawalText(st) {
   const rows = (st.demoWithdrawals || []).slice(0, 10);
-  if (!rows.length) return "💸 DEMO BTC REQUESTS\n\nNo demo BTC removal requests yet.";
-  return "💸 DEMO BTC REQUESTS\n\n" + rows.map((w, i) =>
-    `${i + 1}. ${Number(w.amount).toFixed(8)} BTC DEMO • ${w.status}\nTest address: ${w.address}`
-  ).join("\n\n") + "\n\n⚠️ Simulation only — DEMO BTC has no cash value and no real BTC is owed or sent.";
+  if (!rows.length) return "💸 DEMO WITHDRAWALS\n\nNo demo withdrawal requests yet.";
+  return "💸 DEMO WITHDRAWALS\n\n" + rows.map((w, i) =>
+    `${i + 1}. ${Number(w.amount).toFixed(2)} credits • ${w.status}\nTest address: ${w.address}`
+  ).join("\n\n") + "\n\n⚠️ Simulation only — no real BTC is owed or sent.";
 }
 
 function supportText(env, overrideAddress = "") {
@@ -347,14 +332,14 @@ function supportText(env, overrideAddress = "") {
 BTC address:
 ${address}
 
-⚠️ Real BTC support payments are separate from DEMO BTC credits. Sending BTC here does NOT increase the demo balance and creates no withdrawal entitlement.`;
+⚠️ Support payments are separate from the roulette demo. Sending BTC here does NOT add demo credits, create a wagering balance, or create any withdrawal entitlement.`;
 }
 
 function adminQueueText(queue) {
   const rows = queue.slice(0, 10);
   if (!rows.length) return "🛠 DEMO ADMIN QUEUE\n\nNo demo withdrawal requests.";
   return "🛠 DEMO ADMIN QUEUE\n\n" + rows.map(w =>
-    `${w.id} • User ${w.userId}\n${Number(w.amount).toFixed(8)} BTC DEMO • ${w.status}\n${w.address}`
+    `${w.id} • User ${w.userId}\n${Number(w.amount).toFixed(2)} credits • ${w.status}\n${w.address}`
   ).join("\n\n") + "\n\nSimulation only. Status controls do not send BTC.";
 }
 
@@ -449,41 +434,6 @@ export class PlayerState {
     if (!st) {
       st = defaultState(userId);
       await this.storage.put("state", st);
-    } else if (Number(st.demoCurrencyVersion || 0) < 2) {
-      // One-time DEMO migration only:
-      // 1 old demo credit = 0.00000100 BTC DEMO (100 sat-style demo units).
-      const scale = 0.00000100;
-      for (const key of ["balance","startBalance","unit","target","stoploss","peakBalance","maxDrawdown","cyclePl"]) {
-        if (Number.isFinite(Number(st[key]))) st[key] = Number(st[key]) * scale;
-      }
-      if (Array.isArray(st.history)) {
-        st.history = st.history.map(r => ({
-          ...r,
-          pnl: Number(r.pnl || 0) * scale,
-          balance: Number(r.balance || 0) * scale
-        }));
-      }
-      if (Array.isArray(st.demoWithdrawals)) {
-        st.demoWithdrawals = st.demoWithdrawals.map(w => ({
-          ...w,
-          amount: Number(w.amount || 0) * scale
-        }));
-      }
-      st.demoCurrencyVersion = 2;
-      if (!Number.isFinite(Number(st.mirrorBtcBalance))) st.mirrorBtcBalance = 0;
-      if (!Array.isArray(st.mirrorEvents)) st.mirrorEvents = [];
-      await this.storage.put("state", st);
-    } else {
-      let changed = false;
-      if (!Number.isFinite(Number(st.mirrorBtcBalance))) {
-        st.mirrorBtcBalance = 0;
-        changed = true;
-      }
-      if (!Array.isArray(st.mirrorEvents)) {
-        st.mirrorEvents = [];
-        changed = true;
-      }
-      if (changed) await this.storage.put("state", st);
     }
     return st;
   }
@@ -518,7 +468,7 @@ export class PlayerState {
       st.running = false;
       st.runId = null;
       st.autoTarget = null;
-      return { stopped:true, reason:"Insufficient DEMO BTC balance for the next wager.", state:st };
+      return { stopped:true, reason:"Insufficient demo balance for the next wager.", state:st };
     }
 
     const n = Math.floor(Math.random() * 37);
@@ -550,12 +500,12 @@ export class PlayerState {
       st.running = false;
       st.runId = null;
       st.autoTarget = null;
-      reason = `Profit target reached: ${demoBtcSigned(session)}.`;
+      reason = `Profit target reached: ${fmtSigned(session)} credits.`;
     } else if (st.stoploss > 0 && session <= -st.stoploss) {
       st.running = false;
       st.runId = null;
       st.autoTarget = null;
-      reason = `Stop target reached: ${demoBtcSigned(session)}.`;
+      reason = `Stop target reached: ${fmtSigned(session)} credits.`;
     }
 
     return { state:st, result:item, reason };
@@ -564,9 +514,9 @@ export class PlayerState {
   async showSettings(chatId, messageId, st) {
     const text = `⚙️ BET SETTINGS
 
-Current Unit Size: ${demoBtc(st.unit)}
-Profit Target: +${demoBtc(st.target)}
-Stop Target: -${demoBtc(st.stoploss)}
+Current Unit Size: ${st.unit.toFixed(2)} credits
+Profit Target: +${st.target.toFixed(2)} credits
+Stop Target: -${st.stoploss.toFixed(2)} credits
 
 Choose the value you want to change:`;
     return safeEdit(this.env, chatId, messageId, text, settingsKeyboard());
@@ -689,9 +639,9 @@ Choose the value you want to change:`;
       st.pendingInput = data.replace("input_", "");
       await this.saveState(st);
       const labels = {
-        unit:["💰 DEMO BTC UNIT SIZE","Type the DEMO BTC unit size.\n\nExample: 0.00000100"],
-        target:["🎯 PROFIT TARGET","Type the DEMO BTC profit amount that should automatically stop Auto Spin.\n\nExample: 0.00005000"],
-        stop:["🛑 STOP TARGET","Type the DEMO BTC maximum session loss that should automatically stop Auto Spin.\n\nExample: 0.00010000"]
+        unit:["💰 UNIT SIZE","Type your new unit size.\n\nExample: 0.10"],
+        target:["🎯 PROFIT TARGET","Type the profit amount that should automatically stop Auto Spin.\n\nExample: 10"],
+        stop:["🛑 STOP TARGET","Type the maximum session loss that should automatically stop Auto Spin.\n\nExample: 20"]
       };
       const [title, body] = labels[st.pendingInput];
       return safeEdit(this.env, chatId, messageId, `${title}\n\n${body}`, {
@@ -758,87 +708,6 @@ Choose the value you want to change:`;
       return safeEdit(this.env, chatId, messageId, "✅ Session reset.\n\n" + statusText(st), mainKeyboard(st));
     }
 
-
-    if (data === "mirror_home") {
-      return safeEdit(
-        this.env,
-        chatId,
-        messageId,
-        `🔄 BTC ↔ DEMO MIRROR
-
-Recorded BTC balance: ${mirrorBtc(st.mirrorBtcBalance || 0)}
-Roulette demo balance: ${demoBtc(st.balance)}
-
-Record a BTC deposit or withdrawal amount and the exact same numerical amount will be applied to the DEMO BTC balance.
-
-⚠️ Bookkeeping/simulation only. This does not receive, send, or transfer real BTC.`,
-        {
-          inline_keyboard: [
-            [{ text: "📥 Record BTC Deposit", callback_data: "mirror_deposit" }],
-            [{ text: "📤 Record BTC Withdrawal", callback_data: "mirror_withdraw" }],
-            [{ text: "📜 Mirror History", callback_data: "mirror_history" }],
-            [{ text: "🎰 Dashboard", callback_data: "dashboard" }]
-          ]
-        }
-      );
-    }
-
-    if (data === "mirror_deposit") {
-      st.awaiting = "mirror_deposit_amount";
-      await this.saveState(st);
-      return telegramApi(this.env, "sendMessage", {
-        chat_id: chatId,
-        text: `📥 RECORD BTC DEPOSIT
-
-Enter the BTC amount.
-
-Example: 0.00025000
-
-The exact same amount will be added to:
-• Recorded BTC mirror balance
-• Roulette DEMO BTC balance
-
-⚠️ No blockchain payment is processed by this button.`
-      });
-    }
-
-    if (data === "mirror_withdraw") {
-      st.awaiting = "mirror_withdraw_amount";
-      await this.saveState(st);
-      return telegramApi(this.env, "sendMessage", {
-        chat_id: chatId,
-        text: `📤 RECORD BTC WITHDRAWAL
-
-Enter the BTC amount.
-
-Example: 0.00010000
-
-The exact same amount will be removed from:
-• Recorded BTC mirror balance
-• Roulette DEMO BTC balance
-
-⚠️ No real BTC is sent by this button.`
-      });
-    }
-
-    if (data === "mirror_history") {
-      return telegramApi(this.env, "sendMessage", {
-        chat_id: chatId,
-        text: `📜 BTC MIRROR HISTORY
-
-${mirrorHistoryText(st)}
-
-Current BTC mirror: ${mirrorBtc(st.mirrorBtcBalance || 0)}
-Current DEMO BTC: ${demoBtc(st.balance)}`,
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: "🔄 BTC Mirror", callback_data: "mirror_home" }],
-            [{ text: "🎰 Dashboard", callback_data: "dashboard" }]
-          ]
-        }
-      });
-    }
-
     if (data === "btc_support") {
       const address = String(this.runtimeSupportBtcAddress || this.env.SUPPORT_BTC_ADDRESS || "").trim();
 
@@ -858,7 +727,7 @@ Current DEMO BTC: ${demoBtc(st.balance)}`,
       st.pendingWithdrawalAmount = null;
       await this.saveState(st);
       return safeEdit(this.env, chatId, messageId,
-        "💸 REMOVE DEMO BTC\n\nEnter the amount of DEMO BTC credits to remove from your simulated balance.\n\nExample: 0.00010000\n\nThis is simulation-only and does not create a real BTC payout entitlement.",
+        "💸 DEMO WITHDRAWAL\n\nEnter the number of DEMO credits you want to withdraw.\n\nThis is a simulation and does not create a real BTC payout entitlement.",
         {inline_keyboard:[[ {text:"⬅️ Cancel", callback_data:"dashboard"} ]]}
       );
     }
@@ -868,17 +737,10 @@ Current DEMO BTC: ${demoBtc(st.balance)}`,
     }
 
     if (data === "deposit100") {
-      const demoTopUp = 0.00010000;
-      st.balance += demoTopUp;
+      st.balance += 100;
       st.peakBalance = Math.max(st.peakBalance, st.balance);
       await this.saveState(st);
-      return safeEdit(
-        this.env,
-        chatId,
-        messageId,
-        `✅ Added ${demoBtc(demoTopUp)}.\n\nThis is simulated BTC credit only — no real BTC was received.\n\n${statusText(st)}`,
-        mainKeyboard(st)
-      );
+      return safeEdit(this.env, chatId, messageId, "✅ Demo deposit +100 credits.\n\n" + statusText(st), mainKeyboard(st));
     }
   }
 
@@ -886,90 +748,6 @@ Current DEMO BTC: ${demoBtc(st.balance)}`,
     const userId = String(message.from.id);
     const chatId = message.chat.id;
     const text = (message.text || "").trim();
-
-    if (st.awaiting === "mirror_deposit_amount") {
-      const value = Number(text);
-      if (!Number.isFinite(value) || value <= 0) {
-        return telegramApi(this.env, "sendMessage", {
-          chat_id: chatId,
-          text: "Enter a valid BTC amount greater than 0. Example: 0.00025000"
-        });
-      }
-
-      st.mirrorBtcBalance = Number(st.mirrorBtcBalance || 0) + value;
-      st.balance = Number(st.balance || 0) + value;
-      st.peakBalance = Math.max(Number(st.peakBalance || 0), st.balance);
-      st.mirrorEvents = Array.isArray(st.mirrorEvents) ? st.mirrorEvents : [];
-      st.mirrorEvents.push({
-        type: "deposit",
-        amount: value,
-        balance: st.mirrorBtcBalance,
-        at: Date.now()
-      });
-      st.awaiting = null;
-      await this.saveState(st);
-
-      return telegramApi(this.env, "sendMessage", {
-        chat_id: chatId,
-        text: `✅ MIRROR UPDATED
-
-Recorded BTC deposit: +${value.toFixed(8)} BTC
-BTC mirror balance: ${mirrorBtc(st.mirrorBtcBalance)}
-DEMO BTC balance: ${demoBtc(st.balance)}
-
-This is numerical bookkeeping only; no real BTC was received by this bot.`
-      });
-    }
-
-    if (st.awaiting === "mirror_withdraw_amount") {
-      const value = Number(text);
-      if (!Number.isFinite(value) || value <= 0) {
-        return telegramApi(this.env, "sendMessage", {
-          chat_id: chatId,
-          text: "Enter a valid BTC amount greater than 0. Example: 0.00010000"
-        });
-      }
-
-      const mirrorBal = Number(st.mirrorBtcBalance || 0);
-      const demoBal = Number(st.balance || 0);
-
-      if (value > mirrorBal) {
-        return telegramApi(this.env, "sendMessage", {
-          chat_id: chatId,
-          text: `Recorded BTC mirror balance is only ${mirrorBal.toFixed(8)} BTC.`
-        });
-      }
-
-      if (value > demoBal) {
-        return telegramApi(this.env, "sendMessage", {
-          chat_id: chatId,
-          text: `DEMO BTC balance is only ${demoBal.toFixed(8)} BTC DEMO.`
-        });
-      }
-
-      st.mirrorBtcBalance = mirrorBal - value;
-      st.balance = demoBal - value;
-      st.mirrorEvents = Array.isArray(st.mirrorEvents) ? st.mirrorEvents : [];
-      st.mirrorEvents.push({
-        type: "withdrawal",
-        amount: value,
-        balance: st.mirrorBtcBalance,
-        at: Date.now()
-      });
-      st.awaiting = null;
-      await this.saveState(st);
-
-      return telegramApi(this.env, "sendMessage", {
-        chat_id: chatId,
-        text: `✅ MIRROR UPDATED
-
-Recorded BTC withdrawal: -${value.toFixed(8)} BTC
-BTC mirror balance: ${mirrorBtc(st.mirrorBtcBalance)}
-DEMO BTC balance: ${demoBtc(st.balance)}
-
-This is numerical bookkeeping only; no real BTC was sent by this bot.`
-      });
-    }
 
     if (text === "/start" || text === "/dashboard") {
       st.pendingInput = null;
@@ -1083,7 +861,7 @@ This is numerical bookkeeping only; no real BTC was sent by this bot.`
         st.pendingInput = null;
         st.pendingWithdrawalAmount = null;
         await this.saveState(st);
-        return telegramApi(this.env, "sendMessage", {chat_id:chatId, text:"DEMO BTC amount is no longer available. Start the request again."});
+        return telegramApi(this.env, "sendMessage", {chat_id:chatId, text:"Demo withdrawal amount is no longer available. Start the request again."});
       }
 
       st.balance -= amount;
@@ -1097,38 +875,38 @@ This is numerical bookkeeping only; no real BTC was sent by this bot.`
 
       return telegramApi(this.env, "sendMessage", {
         chat_id:chatId,
-        text:`✅ DEMO BTC removal request recorded: ${amount.toFixed(8)} BTC DEMO.\n\n⚠️ Simulation only — this does not create a real BTC payout.\n\n${statusText(st)}`,
+        text:`✅ Demo withdrawal request recorded: ${amount.toFixed(2)} credits.\n\n⚠️ Simulation only — this does not create a real BTC payout.\n\n${statusText(st)}`,
         reply_markup:mainKeyboard(st)
       });
     }
 
     const value = Number(text.replaceAll("$","").replaceAll(",",""));
     if (!Number.isFinite(value) || value <= 0) {
-      return telegramApi(this.env, "sendMessage", {chat_id:chatId, text:"Please enter a number greater than 0. Example: 0.00000100"});
+      return telegramApi(this.env, "sendMessage", {chat_id:chatId, text:"Please enter a number greater than 0. Example: 0.10"});
     }
 
     let label;
     if (st.pendingInput === "withdraw_amount") {
       if (value > st.balance) {
-        return telegramApi(this.env, "sendMessage", {chat_id:chatId, text:`DEMO BTC balance is only ${st.balance.toFixed(8)} BTC DEMO.`});
+        return telegramApi(this.env, "sendMessage", {chat_id:chatId, text:`Demo balance is only ${st.balance.toFixed(2)} credits.`});
       }
       st.pendingWithdrawalAmount = value;
       st.pendingInput = "withdraw_address";
       await this.saveState(st);
       return telegramApi(this.env, "sendMessage", {
         chat_id:chatId,
-        text:`DEMO BTC amount: ${value.toFixed(8)} BTC DEMO.\n\nNow enter a BTC-style TEST address to attach to this simulated request.\n\n⚠️ No real BTC will be sent.`
+        text:`Demo withdrawal amount: ${value.toFixed(2)} credits.\n\nNow enter a BTC-style TEST address to attach to this simulated request.\n\n⚠️ No real BTC will be sent.`
       });
     } else if (st.pendingInput === "unit") {
-      if (value > 1) return telegramApi(this.env, "sendMessage", {chat_id:chatId, text:"Unit size is too large."});
+      if (value > 10000) return telegramApi(this.env, "sendMessage", {chat_id:chatId, text:"Unit size is too large."});
       st.unit = value;
-      label = `💰 DEMO BTC unit size changed to ${value.toFixed(8)} BTC DEMO.`;
+      label = `💰 Unit size changed to ${value.toFixed(2)} credits.`;
     } else if (st.pendingInput === "target") {
       st.target = value;
-      label = `🎯 Profit target changed to +${value.toFixed(8)} BTC DEMO.`;
+      label = `🎯 Profit target changed to +${value.toFixed(2)} credits.`;
     } else {
       st.stoploss = value;
-      label = `🛑 Stop target changed to -${value.toFixed(8)} BTC DEMO.`;
+      label = `🛑 Stop target changed to -${value.toFixed(2)} credits.`;
     }
 
     st.pendingInput = null;
