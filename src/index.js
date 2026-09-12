@@ -237,8 +237,8 @@ function poolMineText(st) {
   return `📜 MY CONTRIBUTIONS\n\n${lines}\n\nTotal recorded: ${total.toFixed(8)} BTC`;
 }
 
-function poolAddressText(env) {
-  const address = String(env.SUPPORT_BTC_ADDRESS || "").trim();
+function poolAddressText(env, overrideAddress = "") {
+  const address = String(overrideAddress || env.SUPPORT_BTC_ADDRESS || "").trim();
   if (!address) return "₿ COMMUNITY TREASURY\n\nTreasury address is not configured yet.";
 
   return `₿ COMMUNITY TREASURY
@@ -324,8 +324,8 @@ function demoWithdrawalText(st) {
   ).join("\n\n") + "\n\n⚠️ Simulation only — no real BTC is owed or sent.";
 }
 
-function supportText(env) {
-  const address = String(env.SUPPORT_BTC_ADDRESS || "").trim();
+function supportText(env, overrideAddress = "") {
+  const address = String(overrideAddress || env.SUPPORT_BTC_ADDRESS || "").trim();
   if (!address) return "₿ SUPPORT WITH BITCOIN\n\nSupport address is not configured yet.";
   return `₿ SUPPORT WITH BITCOIN
 
@@ -599,11 +599,11 @@ Choose the value you want to change:`;
     }
 
     if (data === "pool_address") {
-      const address = String(this.env.SUPPORT_BTC_ADDRESS || "").trim();
+      const address = String(this.runtimeSupportBtcAddress || this.env.SUPPORT_BTC_ADDRESS || "").trim();
 
       return telegramApi(this.env, "sendMessage", {
         chat_id: chatId,
-        text: poolAddressText(this.env),
+        text: poolAddressText(this.env, address),
         reply_markup: {
           inline_keyboard: [
             [{ text: "🤝 Community Pool", callback_data: "mode_pool" }]
@@ -709,9 +709,11 @@ Choose the value you want to change:`;
     }
 
     if (data === "btc_support") {
+      const address = String(this.runtimeSupportBtcAddress || this.env.SUPPORT_BTC_ADDRESS || "").trim();
+
       return telegramApi(this.env, "sendMessage", {
         chat_id: chatId,
-        text: supportText(this.env),
+        text: supportText(this.env, address),
         reply_markup: {
           inline_keyboard: [
             [{ text: "🎰 Dashboard", callback_data: "dashboard" }]
@@ -961,7 +963,16 @@ Choose the value you want to change:`;
     }
 
     if (url.pathname === "/update" && req.method === "POST") {
-      const update = await req.json();
+      const body = await req.json();
+      const update = body?.update || body;
+      const runtime = body?.runtime || {};
+
+      // Dashboard-added variables can be newer than an already-running Durable Object.
+      // Pass the latest values from the top-level Worker on every Telegram update.
+      this.runtimeSupportBtcAddress = String(
+        runtime.supportBtcAddress || this.env.SUPPORT_BTC_ADDRESS || ""
+      ).trim();
+
       const userId = String(update.callback_query?.from?.id || update.message?.from?.id || "");
       if (!userId) return json({ok:true});
       const st = await this.getState(userId);
@@ -1070,7 +1081,12 @@ export default {
         await stub.fetch("https://player.local/update", {
           method:"POST",
           headers:{"content-type":"application/json"},
-          body:JSON.stringify(update)
+          body:JSON.stringify({
+            update,
+            runtime: {
+              supportBtcAddress: String(env.SUPPORT_BTC_ADDRESS || "").trim()
+            }
+          })
         });
         return json({ok:true});
       } catch (e) {
